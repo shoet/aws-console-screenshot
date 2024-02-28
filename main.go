@@ -44,9 +44,9 @@ func run(context context.Context, config *Config) error {
 		return fmt.Errorf("failed to LoginAWSConsole: %v", err)
 	}
 
-		if err := cleanup(); err != nil {
+	if err := cleanup(); err != nil {
 		return fmt.Errorf("failed to cleanup browser: %v", err)
-		}
+	}
 	return nil
 }
 
@@ -55,7 +55,8 @@ func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() erro
 	fmt.Println("get launcher")
 	l := launcher.New().
 		Bin(browserPath).
-		Headless(true).
+		Headless(false).
+		// Headless(true).
 		NoSandbox(true).
 		Set("disable-gpu", "").
 		Set("disable-software-rasterizer", "").
@@ -94,6 +95,8 @@ func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() erro
 // コンソールにアクセス
 // コンソールにログイン
 func LoginAWSConsole(browser *rod.Browser, accountId string, username string, password string) error {
+
+	// AWSコンソールのログインページにアクセス
 	url := fmt.Sprintf("https://%s.signin.aws.amazon.com/console", accountId)
 	targetInput := proto.TargetCreateTarget{
 		URL: url,
@@ -105,8 +108,28 @@ func LoginAWSConsole(browser *rod.Browser, accountId string, username string, pa
 	if err := page.WaitLoad(); err != nil {
 		return fmt.Errorf("failed tod WaitLoad: %v", err)
 	}
+
+	// ユーザー名を入力
+	usernameElement, err := page.Element("input[type='text']#username")
+	if err != nil {
+		return fmt.Errorf("failed to find username element: %v", err)
+	}
+	if err := usernameElement.Input(username); err != nil {
+		return fmt.Errorf("failed to input username: %v", err)
+	}
+
+	// パスワードを入力
+	passwordElement, err := page.Element("input[type='password']#password")
+	if err != nil {
+		return fmt.Errorf("failed to find password element: %v", err)
+	}
+	if err := passwordElement.Input(password); err != nil {
+		return fmt.Errorf("failed to input password: %v", err)
+	}
 	return nil
 }
+
+// func SetLoginForm()
 
 // ログのURLにアクセス
 // スクリーンショット
