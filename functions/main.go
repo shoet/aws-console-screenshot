@@ -9,13 +9,16 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
+	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 )
 
 type Config struct {
-	AwsUsername string `validate:"required"`
-	AwsPassword string `validate:"required"`
-	BrowserPath string `envDefault:"/opt/homebrew/bin/chromium"`
+	AwsAccountId string `envconfig:"AWS_ACCOUNT_ID" validate:"required"`
+	AwsUsername  string `envconfig:"AWS_USERNAME" validate:"required"`
+	AwsPassword  string `envconfig:"AWS_PASSWORD" validate:"required"`
+	BrowserPath  string `envconfig:"BROWSER_PATH" default:"/opt/homebrew/bin/chromium"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -36,29 +39,15 @@ func run(context context.Context, config *Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to BuildBrowser: %v", err)
 	}
-	defer func() {
-		if err := cleanup(); err != nil {
-			panic(err)
-		}
-	}()
-	_ = browser
-	return nil
-}
 
-func main() {
-	config, err := LoadConfig()
-	if err != nil {
-		panic(err)
+	if err := LoginAWSConsole(browser, config.AwsAccountId, config.AwsUsername, config.AwsPassword); err != nil {
+		return fmt.Errorf("failed to LoginAWSConsole: %v", err)
 	}
-	if len(os.Args) > 1 && os.Args[1] == "local" {
-		if err = run(context.Background(), config); err != nil {
-			panic(err)
+
+		if err := cleanup(); err != nil {
+		return fmt.Errorf("failed to cleanup browser: %v", err)
 		}
-	} else {
-		lambda.Start(func(ctx context.Context) error {
-			return run(ctx, config)
-		})
-	}
+	return nil
 }
 
 // ブラウザ起動
@@ -99,13 +88,49 @@ func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() erro
 		}
 		return nil
 	}
-
 	return browser, cleanup, nil
 }
 
-// envからID/PASS取得
 // コンソールにアクセス
 // コンソールにログイン
+func LoginAWSConsole(browser *rod.Browser, accountId string, username string, password string) error {
+	url := fmt.Sprintf("https://%s.signin.aws.amazon.com/console", accountId)
+	targetInput := proto.TargetCreateTarget{
+		URL: url,
+	}
+	page, err := browser.Page(targetInput)
+	if err != nil {
+		return fmt.Errorf("failed to browser page: %v", err)
+	}
+	if err := page.WaitLoad(); err != nil {
+		return fmt.Errorf("failed tod WaitLoad: %v", err)
+	}
+	return nil
+}
+
 // ログのURLにアクセス
 // スクリーンショット
 // S3に保存
+
+func main() {
+	if _, err := os.Stat(".env"); err != nil {
+		fmt.Println("not found dotenv")
+	} else {
+		if err := godotenv.Load(".env"); err != nil {
+			panic(err)
+		}
+	}
+	config, err := LoadConfig()
+	if err != nil {
+		panic(err)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "local" {
+		if err = run(context.Background(), config); err != nil {
+			panic(err)
+		}
+	} else {
+		lambda.Start(func(ctx context.Context) error {
+			return run(ctx, config)
+		})
+	}
+}

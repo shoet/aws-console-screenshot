@@ -21,5 +21,6 @@ functions:
       name: ContainerImage
     name: console-screenshot
     environment:
-      AWS_USERNAME: ${ssm:/aws-console-screenshot/USERNAME}
-      AWS_PASSWORD: ${ssm:/aws-console-screenshot/PASSWORD}
+      AWS_ACCOUNT_ID: ${ssm:/aws-console-screenshot/AWS_ACCOUNT_ID}
+      AWS_USERNAME: ${ssm:/aws-console-screenshot/AWS_USERNAME}
+      AWS_PASSWORD: ${ssm:/aws-console-screenshot/AWS_PASSWORD}
