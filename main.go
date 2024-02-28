@@ -92,11 +92,8 @@ func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() erro
 	return browser, cleanup, nil
 }
 
-// コンソールにアクセス
-// コンソールにログイン
 func LoginAWSConsole(browser *rod.Browser, accountId string, username string, password string) error {
-
-	// AWSコンソールのログインページにアクセス
+	// コンソールにアクセス
 	url := fmt.Sprintf("https://%s.signin.aws.amazon.com/console", accountId)
 	targetInput := proto.TargetCreateTarget{
 		URL: url,
@@ -108,7 +105,6 @@ func LoginAWSConsole(browser *rod.Browser, accountId string, username string, pa
 	if err := page.WaitLoad(); err != nil {
 		return fmt.Errorf("failed tod WaitLoad: %v", err)
 	}
-
 	// ユーザー名を入力
 	usernameElement, err := page.Element("input[type='text']#username")
 	if err != nil {
@@ -126,12 +122,20 @@ func LoginAWSConsole(browser *rod.Browser, accountId string, username string, pa
 	if err := passwordElement.Input(password); err != nil {
 		return fmt.Errorf("failed to input password: %v", err)
 	}
+
+	// ログインボタンをクリック
+	loginButton, err := page.Element("a#signin_button")
+	if err != nil {
+		return fmt.Errorf("failed to find login button: %v", err)
+	}
+	if err := loginButton.Tap(); err != nil {
+		return fmt.Errorf("failed to tap login button: %v", err)
+	}
+
 	return nil
 }
 
-// func SetLoginForm()
-
-// ログのURLにアクセス
+// URLにアクセス
 // スクリーンショット
 // S3に保存
 
