@@ -44,6 +44,24 @@ func run(context context.Context, config *Config) error {
 		return fmt.Errorf("failed to LoginAWSConsole: %v", err)
 	}
 
+	urls := []string{
+		"https://ap-northeast-1.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fweb-page-summarizer-dev-api/log-events/2024$252F02$252F28$252F$255B$2524LATEST$255D6e8abc2eda9f42ab94beea55bb0936c8",
+	}
+
+	// TODO: デバッグ
+
+	for _, url := range urls {
+		pngBinary, err := GetScreenShot(browser, url)
+		if err != nil {
+			return fmt.Errorf("failed to GetScreenShot URL[%s]: %w", url, err)
+		}
+		// S3に保存
+		fmt.Println(pngBinary[:3])
+		if err := SaveImage(pngBinary, "./data.png"); err != nil {
+			return fmt.Errorf("failed to SaveImage: %v", err)
+		}
+	}
+
 	if err := cleanup(); err != nil {
 		return fmt.Errorf("failed to cleanup browser: %v", err)
 	}
@@ -55,8 +73,8 @@ func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() erro
 	fmt.Println("get launcher")
 	l := launcher.New().
 		Bin(browserPath).
-		Headless(false).
-		// Headless(true).
+		// Headless(false).
+		Headless(true).
 		NoSandbox(true).
 		Set("disable-gpu", "").
 		Set("disable-software-rasterizer", "").
@@ -131,13 +149,41 @@ func LoginAWSConsole(browser *rod.Browser, accountId string, username string, pa
 	if err := loginButton.Tap(); err != nil {
 		return fmt.Errorf("failed to tap login button: %v", err)
 	}
-
 	return nil
 }
 
-// URLにアクセス
-// スクリーンショット
-// S3に保存
+func GetScreenShot(browser *rod.Browser, url string) ([]byte, error) {
+	// URLにアクセス
+	page, err := browser.Page(proto.TargetCreateTarget{URL: url})
+	if err != nil {
+		return nil, fmt.Errorf("failed to browser page: %v", err)
+	}
+	if err := page.WaitLoad(); err != nil {
+		return nil, fmt.Errorf("failed tod WaitLoad: %v", err)
+	}
+	// スクリーンショット
+	data, err := page.Screenshot(true, &proto.PageCaptureScreenshot{
+		Format: "png",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to page screenshot: %v", err)
+	}
+	return data, nil
+}
+
+func SaveImage(img []byte, filepath string) error {
+	f, err := os.Create(filepath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(img); err != nil {
+		return fmt.Errorf("faield to write file: %v", err)
+	}
+
+	return nil
+}
 
 func main() {
 	if _, err := os.Stat(".env"); err != nil {
