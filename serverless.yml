@@ -1,0 +1,25 @@
+service: aws-console-screenshot
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  ecr:
+    images:
+      ContainerImage:
+        path: ./
+        platform: linux/amd64
+
+package:
+  patterns:
+    - "!./**"
+    - ./functions/**
+
+functions:
+  screenshot:
+    image:
+      name: ContainerImage
+    name: console-screenshot
+    environment:
+      AWS_USERNAME: ${ssm:/aws-console-screenshot/USERNAME}
+      AWS_PASSWORD: ${ssm:/aws-console-screenshot/PASSWORD}
