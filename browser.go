@@ -43,6 +43,7 @@ func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() erro
 	fmt.Println("connected rod")
 
 	cleanup = func() error {
+		fmt.Println("terminate browser")
 		if err := browser.Close(); err != nil {
 			return fmt.Errorf("Failed to close browser: %w", err)
 		}

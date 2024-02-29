@@ -4,6 +4,8 @@ frameworkVersion: "3"
 
 provider:
   name: aws
+  region: ap-northeast-1
+
   ecr:
     images:
       ContainerImage:
@@ -13,14 +15,49 @@ provider:
 package:
   patterns:
     - "!./**"
-    - ./functions/**
 
 functions:
   screenshot:
+    role: LambdaRole
     image:
       name: ContainerImage
     name: console-screenshot
+    timeout: 60
     environment:
-      AWS_ACCOUNT_ID: ${ssm:/aws-console-screenshot/AWS_ACCOUNT_ID}
-      AWS_USERNAME: ${ssm:/aws-console-screenshot/AWS_USERNAME}
-      AWS_PASSWORD: ${ssm:/aws-console-screenshot/AWS_PASSWORD}
+      ACCOUNTID: ${ssm:/console-screenshot/ACCOUNTID}
+      USERNAME: ${ssm:/console-screenshot/USERNAME}
+      PASSWORD: ${ssm:/console-screenshot/PASSWORD}
+      REGION: ${ssm:/console-screenshot/REGION}
+      BUCKET_NAME: ${ssm:/console-screenshot/BUCKET_NAME}
+      IMAGE_SAVE_PATH: ${ssm:/console-screenshot/IMAGE_SAVE_PATH}
+
+resources:
+  Resources:
+    LambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: aws-console-screenshot
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action:
+                - "sts:AssumeRole"
+        Policies:
+          - PolicyName: cooking-share-lambda-policy
+            PolicyDocument:
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource: "arn:aws:logs:*:*:*"
+                - Effect: "Allow"
+                  Action:
+                    - "s3:GetObject"
+                    - "s3:PutObject"
+                  Resource:
+                    - "arn:aws:s3:::${ssm:/console-screenshot/BUCKET_NAME}/*"

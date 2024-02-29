@@ -16,12 +16,12 @@ import (
 )
 
 type Config struct {
-	AwsAccountId       string `envconfig:"AWS_ACCOUNT_ID" validate:"required"`
-	AwsUsername        string `envconfig:"AWS_USERNAME" validate:"required"`
-	AwsPassword        string `envconfig:"AWS_PASSWORD" validate:"required"`
-	AwsRegion          string `envconfig:"AWS_REGION" validate:"required"`
-	AwsS3Bucket        string `envconfig:"AWS_S3_BUCKET" validate:"required"`
-	AwsS3ImageSavePath string `envconfig:"AWS_S3_IMAGE_SAVE_PATH" validate:"required"`
+	AwsAccountId       string `envconfig:"ACCOUNTID" validate:"required"`
+	AwsUsername        string `envconfig:"USERNAME" validate:"required"`
+	AwsPassword        string `envconfig:"PASSWORD" validate:"required"`
+	AwsRegion          string `envconfig:"REGION" validate:"required"`
+	AwsS3Bucket        string `envconfig:"BUCKET_NAME" validate:"required"`
+	AwsS3ImageSavePath string `envconfig:"IMAGE_SAVE_PATH" validate:"required"`
 	BrowserPath        string `envconfig:"BROWSER_PATH" default:"/opt/homebrew/bin/chromium"`
 	LocalStoragePath   string `envconfig:"LOCAL_STORAGE_PATH" default:"data"`
 }
@@ -53,6 +53,7 @@ func NewScreenCapture(config *Config, localStorage *LocalStorage, s3Adapter *S3A
 }
 
 func (s *ScreenCapture) Run(context context.Context, config *Config) error {
+	// ブラウザ起動
 	browser, cleanup, err := BuildBrowser(config.BrowserPath)
 	if err != nil {
 		return fmt.Errorf("failed to BuildBrowser: %v", err)
@@ -64,6 +65,7 @@ func (s *ScreenCapture) Run(context context.Context, config *Config) error {
 		return fmt.Errorf("failed to LoginAWSConsole: %v", err)
 	}
 
+	// ロード待機
 	if err := WaitPageStable(page); err != nil {
 		return fmt.Errorf("failed to WaitPageStable: %v", err)
 	}
@@ -75,28 +77,34 @@ func (s *ScreenCapture) Run(context context.Context, config *Config) error {
 		return fmt.Errorf("failed to LoadConsolePage: %v", err)
 	}
 
+	// ロード待機
 	if err := WaitPageStable(page); err != nil {
 		return fmt.Errorf("failed to WaitPageStable: %v", err)
 	}
 
 	urls := []string{
+		url, // TODO: test
 	}
 
 	for _, url := range urls {
+		// 対象のページに遷移
 		page, err = NavigatePage(page, url)
 		if err != nil {
 			return fmt.Errorf("failed to NavigatePage: %v", err)
 		}
 
+		// ロード待機
 		if err := WaitPageStable(page); err != nil {
 			return fmt.Errorf("failed to WaitPageStable: %v", err)
 		}
 
+		// スクリーンショット
 		pngBinary, err := GetScreenShot(page)
 		if err != nil {
 			return fmt.Errorf("failed to GetScreenShot URL[%s]: %w", url, err)
 		}
 
+		// 画像保存
 		n := time.Now().Add(time.Hour * 9)
 		fileName := strings.ReplaceAll(n.Format("20060102150405.000"), ".", "") + ".png"
 		if err := s.SaveImage(pngBinary, fileName); err != nil {
