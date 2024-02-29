@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -15,9 +14,9 @@ func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() erro
 	fmt.Println("get launcher")
 	l := launcher.New().
 		Bin(browserPath).
-		Headless(false).
+		// Headless(false).
 		Headless(true).
-		// NoSandbox(true).
+		NoSandbox(true).
 		Set("disable-gpu", "").
 		Set("disable-software-rasterizer", "").
 		Set("single-process", "").
@@ -122,18 +121,4 @@ func GetScreenShot(page *rod.Page) ([]byte, error) {
 		return nil, fmt.Errorf("failed to page screenshot: %v", err)
 	}
 	return data, nil
-}
-
-func SaveImage(img []byte, filepath string) error {
-	f, err := os.Create(filepath)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
-	}
-	defer f.Close()
-
-	if _, err := f.Write(img); err != nil {
-		return fmt.Errorf("faield to write file: %v", err)
-	}
-
-	return nil
 }

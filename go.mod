@@ -1,9 +1,10 @@
-module github.com/shoet/aws-console-screenshoet
+module github.com/shoet/aws-console-screenshot
 
 go 1.20
 
 require (
 	github.com/aws/aws-lambda-go v1.46.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.51.1
 	github.com/go-playground/validator/v10 v10.18.0
 	github.com/go-rod/rod v0.114.7
 	github.com/joho/godotenv v1.5.1
@@ -11,6 +12,16 @@ require (
 )
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.25.2 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.1 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.2 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.2 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.11.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.3.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.11.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.17.2 // indirect
+	github.com/aws/smithy-go v1.20.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect

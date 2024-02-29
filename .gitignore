@@ -20,3 +20,4 @@ bin
 .env
 .vscode
 functions/__debug*
+data/*

@@ -13,7 +13,7 @@ COPY . .
 
 RUN --mount=type=cache,target=/gomod-cache \
     --mount=type=cache,target=/go-cache \
-    go build -trimpath -ldflags="-w -s" -tags timetzdata -o ./bin/main ./main.go
+    go build -trimpath -ldflags="-w -s" -tags timetzdata -o ./bin/main
 
 # ===== deploy stage ====
 FROM golang:1.21-bullseye as deploy
