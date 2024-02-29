@@ -7,9 +7,6 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/go-playground/validator/v10"
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -18,6 +15,7 @@ type Config struct {
 	AwsAccountId string `envconfig:"AWS_ACCOUNT_ID" validate:"required"`
 	AwsUsername  string `envconfig:"AWS_USERNAME" validate:"required"`
 	AwsPassword  string `envconfig:"AWS_PASSWORD" validate:"required"`
+	AwsRegion    string `envconfig:"AWS_REGION" validate:"required"`
 	BrowserPath  string `envconfig:"BROWSER_PATH" default:"/opt/homebrew/bin/chromium"`
 }
 
@@ -40,18 +38,48 @@ func run(context context.Context, config *Config) error {
 		return fmt.Errorf("failed to BuildBrowser: %v", err)
 	}
 
-	if err := LoginAWSConsole(browser, config.AwsAccountId, config.AwsUsername, config.AwsPassword); err != nil {
+	page, err := LoginAWSConsole(browser, config.AwsAccountId, config.AwsUsername, config.AwsPassword)
+	if err != nil {
 		return fmt.Errorf("failed to LoginAWSConsole: %v", err)
 	}
 
-	urls := []string{
-		"https://ap-northeast-1.console.aws.amazon.com/cloudwatch/home?region=ap-northeast-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fweb-page-summarizer-dev-api/log-events/2024$252F02$252F28$252F$255B$2524LATEST$255D6e8abc2eda9f42ab94beea55bb0936c8",
+	if err := WaitPageStable(page); err != nil {
+		return fmt.Errorf("failed to WaitPageStable: %v", err)
 	}
 
-	// TODO: デバッグ
+	// コンソールにアクセス
+	url := fmt.Sprintf("https://%[1]s.console.aws.amazon.com/console/home?region=%[1]s", config.AwsRegion)
+	page, err = NavigatePage(page, url)
+	if err != nil {
+		return fmt.Errorf("failed to LoadConsolePage: %v", err)
+	}
+
+	if err := WaitPageStable(page); err != nil {
+		return fmt.Errorf("failed to WaitPageStable: %v", err)
+	}
+
+	img, err := GetScreenShot(page)
+	if err != nil {
+		return fmt.Errorf("failed to GetScreenShot")
+	}
+
+	SaveImage(img, "./data.png")
+
+	_ = page
+
+	urls := []string{}
 
 	for _, url := range urls {
-		pngBinary, err := GetScreenShot(browser, url)
+		page, err = NavigatePage(page, url)
+		if err != nil {
+			return fmt.Errorf("failed to NavigatePage: %v", err)
+		}
+
+		if err := WaitPageStable(page); err != nil {
+			return fmt.Errorf("failed to WaitPageStable: %v", err)
+		}
+
+		pngBinary, err := GetScreenShot(page)
 		if err != nil {
 			return fmt.Errorf("failed to GetScreenShot URL[%s]: %w", url, err)
 		}
@@ -65,123 +93,6 @@ func run(context context.Context, config *Config) error {
 	if err := cleanup(); err != nil {
 		return fmt.Errorf("failed to cleanup browser: %v", err)
 	}
-	return nil
-}
-
-// ブラウザ起動
-func BuildBrowser(browserPath string) (browser *rod.Browser, cleanup func() error, err error) {
-	fmt.Println("get launcher")
-	l := launcher.New().
-		Bin(browserPath).
-		// Headless(false).
-		Headless(true).
-		NoSandbox(true).
-		Set("disable-gpu", "").
-		Set("disable-software-rasterizer", "").
-		Set("single-process", "").
-		Set("homedir", "/tmp").
-		Set("data-path", "/tmp/data-path").
-		Set("disk-cache-dir", "/tmp/cache-dir")
-
-	launchArgs := l.FormatArgs()
-	fmt.Printf("launchArgs: %s\n", launchArgs)
-
-	fmt.Println("start launcher")
-	url, err := l.Launch()
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to launch browser: %w", err)
-	}
-
-	fmt.Printf("url: %s\n", url)
-	browser = rod.New().ControlURL(url)
-	// .Trace(true)
-	fmt.Println("start connect rod")
-	if err := browser.Connect(); err != nil {
-		return nil, nil, fmt.Errorf("Failed to connect to browser: %w", err)
-	}
-	fmt.Println("connected rod")
-
-	cleanup = func() error {
-		if err := browser.Close(); err != nil {
-			return fmt.Errorf("Failed to close browser: %w", err)
-		}
-		return nil
-	}
-	return browser, cleanup, nil
-}
-
-func LoginAWSConsole(browser *rod.Browser, accountId string, username string, password string) error {
-	// コンソールにアクセス
-	url := fmt.Sprintf("https://%s.signin.aws.amazon.com/console", accountId)
-	targetInput := proto.TargetCreateTarget{
-		URL: url,
-	}
-	page, err := browser.Page(targetInput)
-	if err != nil {
-		return fmt.Errorf("failed to browser page: %v", err)
-	}
-	if err := page.WaitLoad(); err != nil {
-		return fmt.Errorf("failed tod WaitLoad: %v", err)
-	}
-	// ユーザー名を入力
-	usernameElement, err := page.Element("input[type='text']#username")
-	if err != nil {
-		return fmt.Errorf("failed to find username element: %v", err)
-	}
-	if err := usernameElement.Input(username); err != nil {
-		return fmt.Errorf("failed to input username: %v", err)
-	}
-
-	// パスワードを入力
-	passwordElement, err := page.Element("input[type='password']#password")
-	if err != nil {
-		return fmt.Errorf("failed to find password element: %v", err)
-	}
-	if err := passwordElement.Input(password); err != nil {
-		return fmt.Errorf("failed to input password: %v", err)
-	}
-
-	// ログインボタンをクリック
-	loginButton, err := page.Element("a#signin_button")
-	if err != nil {
-		return fmt.Errorf("failed to find login button: %v", err)
-	}
-	if err := loginButton.Tap(); err != nil {
-		return fmt.Errorf("failed to tap login button: %v", err)
-	}
-	return nil
-}
-
-func GetScreenShot(browser *rod.Browser, url string) ([]byte, error) {
-	// URLにアクセス
-	page, err := browser.Page(proto.TargetCreateTarget{URL: url})
-	if err != nil {
-		return nil, fmt.Errorf("failed to browser page: %v", err)
-	}
-	if err := page.WaitLoad(); err != nil {
-		return nil, fmt.Errorf("failed tod WaitLoad: %v", err)
-	}
-	// スクリーンショット
-	data, err := page.Screenshot(true, &proto.PageCaptureScreenshot{
-		Format: "png",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to page screenshot: %v", err)
-	}
-	return data, nil
-}
-
-func SaveImage(img []byte, filepath string) error {
-	f, err := os.Create(filepath)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
-	}
-	defer f.Close()
-
-	if _, err := f.Write(img); err != nil {
-		return fmt.Errorf("faield to write file: %v", err)
-	}
-
 	return nil
 }
 
