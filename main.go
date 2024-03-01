@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
@@ -167,7 +168,13 @@ func main() {
 		panic(err)
 	}
 
-	s3Adapter, err := NewS3Adapter()
+	cfg, err := awsConfig.LoadDefaultConfig(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	s3Adapter, err := NewS3Adapter(&S3AdapterInput{
+		AwsConfig: &cfg,
+	})
 	if err != nil {
 		panic(err)
 	}
